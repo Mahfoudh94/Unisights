@@ -1,0 +1,63 @@
+import NextAuth from "next-auth";
+
+import {
+  DEFAULT_LOGIN_REDIRECT,
+  adminPrefix,
+  apiAuthPrefix,
+  authRoutes,
+  publicRoutes,
+} from "@/routes";
+import { UserRole } from "@prisma/client";
+import { authConfig } from "./server/auth/config";
+
+const { auth } = NextAuth(authConfig);
+
+export default auth((req): void | Response | Promise<void | Response> => {
+  const { nextUrl } = req;
+  const isLoggedIn = !!req.auth;
+  const isAdmin = isLoggedIn && req.auth?.user.role == UserRole.ADMIN;
+
+  const isApiAuthRoute = nextUrl.pathname.startsWith(apiAuthPrefix);
+  // const isApiRoute = nextUrl.pathname.startsWith("");
+  const isPublicRoute = publicRoutes.includes(nextUrl.pathname);
+  const isAuthRoute = authRoutes.includes(nextUrl.pathname);
+  const isAdminRoute = nextUrl.pathname.startsWith(adminPrefix);
+
+  if (isApiAuthRoute) {
+    return void 0;
+  }
+
+  if (isAuthRoute) {
+    if (isLoggedIn) {
+      return Response.redirect(new URL(DEFAULT_LOGIN_REDIRECT, nextUrl));
+    }
+    return void 0;
+  }
+
+  if (!isLoggedIn && !isPublicRoute) {
+    let callbackUrl = nextUrl.pathname;
+    if (nextUrl.search) {
+      callbackUrl += nextUrl.search;
+    }
+
+    const encodedCallbackUrl = encodeURIComponent(callbackUrl);
+
+    return Response.redirect(
+      new URL(`/auth/login?callbackUrl=${encodedCallbackUrl}`, nextUrl),
+    );
+  }
+
+  if (isAdminRoute) {
+    if (isAdmin) {
+      return void 0;
+    }
+    return Response.redirect(new URL("/accessdenied", nextUrl));
+  }
+
+  return void 0;
+});
+
+// Optionally, don't invoke Middleware on some paths
+export const config = {
+  matcher: ["/((?!.+\\.[\\w]+$|_next).*)", "/", "/(api|trpc)(.*)"],
+};
