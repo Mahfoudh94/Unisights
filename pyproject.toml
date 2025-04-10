@@ -1,0 +1,9 @@
+[project]
+name = "pythonproject"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = ">=3.11"
+dependencies = [
+    "google>=3.0.0",
+    "sqlalchemy>=2.0.40",
+]
